@@ -21,11 +21,11 @@ async def risk_flags(db: AsyncSession, *, organization_id: int) -> list[dict]:
         meetings = sum(1 for record in records for meeting in record.board_meetings if cutoff <= meeting.meeting_date <= today)
         if employees == 0 and meetings == 0:
             flags.append({"type":"SUBSTANCE_RISK","severity":"high","entity_id":entity.id,"message":"No local employees and no board meetings recorded in the trailing 12 months.","details":{"period_start":cutoff.isoformat(),"period_end":today.isoformat()}})
-    transactions = (await db.scalars(select(IntercompanyTransaction))).all()
+    transactions = (await db.scalars(select(IntercompanyTransaction).where(IntercompanyTransaction.organization_id == organization_id))).all()
     for tx in transactions:
         if tx.stated_price < tx.benchmark_low or tx.stated_price > tx.benchmark_high:
             flags.append({"type":"TP_RISK","severity":"medium","entity_id":tx.from_entity_id,"message":"Stated transfer price is outside the benchmark range; review required.","details":{"transaction_id":tx.id,"stated_price":str(tx.stated_price),"benchmark":[str(tx.benchmark_low),str(tx.benchmark_high)]}})
-    treaties = (await db.scalars(select(TreatyRate))).all()
+    treaties = (await db.scalars(select(TreatyRate).where(TreatyRate.organization_id == organization_id))).all()
     for treaty in treaties:
         if treaty.last_verified_date < today - timedelta(days=365):
             flags.append({"type":"TREATY_STALE","severity":"low","entity_id":None,"message":"Treaty rate has not been re-verified in the last 12 months.","details":{"treaty_rate_id":treaty.id,"last_verified_date":treaty.last_verified_date.isoformat()}})
