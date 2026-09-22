@@ -34,10 +34,12 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL: postgresql+asyncpg://tax_tracker:tax_tracker_dev_only@localhost:5432/tax_tracker
-        run: alembic upgrade head
+          PYTHONPATH: ${{ github.workspace }}/backend
+        run: python -m alembic upgrade head
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql+asyncpg://tax_tracker:tax_tracker_dev_only@localhost:5432/tax_tracker
+          PYTHONPATH: ${{ github.workspace }}/backend
         run: pytest -q backend/tests
 
   frontend:
