@@ -1,6 +1,5 @@
 import asyncio
 import sys
-from logging.config import fileConfig
 from pathlib import Path
 
 # Alembic may execute this file without adding the backend directory to sys.path.
@@ -14,13 +13,16 @@ from app import models
 from app.db import Base, settings
 
 config = context.config
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
 def run_migrations_offline():
-    context.configure(url=settings.database_url, target_metadata=target_metadata, literal_binds=True, dialect_opts={"paramstyle": "named"})
+    context.configure(
+        url=settings.database_url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
     with context.begin_transaction():
         context.run_migrations()
 
