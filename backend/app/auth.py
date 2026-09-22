@@ -97,9 +97,9 @@ async def get_current_user(session_token: str | None = Cookie(default=None, alia
     return await current_user(session_token, db)
 
 
-async def require_csrf(request: Request, user: CurrentUser = Depends(get_current_user), csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE), csrf_header: str | None = Header(default=None, alias="X-CSRF-Token")) -> CurrentUser:
+async def require_csrf(request: Request, user: CurrentUser = Depends(get_current_user), csrf_cookie: str | None = Cookie(default=None, alias=CSRF_COOKIE), csrf_header: str | None = Header(default=None, alias="X-CSRF-Token"), db: AsyncSession = Depends(get_db)) -> CurrentUser:
     if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-        if not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header):
+        session = await db.get(Session, user.session_id)\n        if not session or not csrf_cookie or not csrf_header or not hmac.compare_digest(csrf_cookie, csrf_header) or not hmac.compare_digest(_token_hash(csrf_cookie), session.csrf_hash):
             raise HTTPException(status_code=403, detail={"error": {"code": "CSRF_REQUIRED", "message": "A valid CSRF token is required."}})
     return user
 
