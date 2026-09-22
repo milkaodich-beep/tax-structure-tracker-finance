@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: tax_tracker
+          POSTGRES_PASSWORD: tax_tracker_dev_only
+          POSTGRES_DB: tax_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U tax_tracker -d tax_tracker"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        run: pip install -r backend/requirements-dev.txt
+      - name: Compile backend
+        run: python -m compileall -q backend
+      - name: Apply migrations
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql+asyncpg://tax_tracker:tax_tracker_dev_only@localhost:5432/tax_tracker
+        run: alembic upgrade head
+      - name: Run backend tests
+        env:
+          DATABASE_URL: postgresql+asyncpg://tax_tracker:tax_tracker_dev_only@localhost:5432/tax_tracker
+        run: pytest -q backend/tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
