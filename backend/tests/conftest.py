@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import insert
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from app.db import settings
-from app.models import Base, Entity, IntercompanyTransaction
+from app.models import Base, Entity, IntercompanyTransaction, Organization
 
 @pytest.fixture
 async def db():
@@ -11,11 +11,11 @@ async def db():
         await conn.run_sync(Base.metadata.create_all)
     Session = async_sessionmaker(engine, expire_on_commit=False)
     async with Session() as session:
-        entity_a = Entity(name="Test A", jurisdiction="KE", entity_type="opco")
-        entity_b = Entity(name="Test B", jurisdiction="UK", entity_type="opco")
+        org = Organization(name="Test Organization")\n        session.add(org)\n        await session.flush()\n        entity_a = Entity(organization_id=org.id, name="Test A", jurisdiction="KE", entity_type="opco")
+        entity_b = Entity(organization_id=org.id, name="Test B", jurisdiction="UK", entity_type="opco")
         session.add_all([entity_a, entity_b])
         await session.flush()
-        tx = IntercompanyTransaction(from_entity_id=entity_a.id,to_entity_id=entity_b.id,type="services",
+        tx = IntercompanyTransaction(organization_id=org.id, from_entity_id=entity_a.id,to_entity_id=entity_b.id,type="services",
             amount=100,currency="USD",transaction_date=__import__("datetime").date.today(),
             stated_price=100,benchmark_low=90,benchmark_high=110)
         session.add(tx)
