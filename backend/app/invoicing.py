@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_HALF_UP
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from .audit import record_audit
@@ -50,7 +50,8 @@ async def create_invoice(db: AsyncSession, *, transaction_id: int, actor: str, i
             raise FinanceError("Cannot adjust a cancelled invoice")
     if issue_date and due_date and due_date < issue_date:
         raise FinanceError("Due date cannot be before issue date")
-    invoice = Invoice(transaction_id=transaction_id, invoice_number=f"INV-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S%f')}",
+    number = await db.scalar(text("SELECT nextval('invoice_number_seq')"))
+    invoice = Invoice(transaction_id=transaction_id, invoice_number=f"INV-{date.today().year}-{int(number):08d}",
                       invoice_type=invoice_type, currency=currency, issue_date=issue_date, due_date=due_date,
                       related_invoice_id=related_invoice_id, notes=notes, created_by_actor=actor,
                       subtotal_amount=Decimal("0"), tax_amount=Decimal("0"), total_amount=Decimal("0"))
@@ -103,6 +104,8 @@ async def finalize_tax(db: AsyncSession, invoice_id: int, actor: str, determinat
     invoice = await get_invoice(db, invoice_id, lock=True)
     _assert_mutable(invoice)
     if invoice.status not in {"draft", "pending_approval", "approved"}: raise FinanceError("Tax can only be finalized before issuance")
+    if invoice.tax_finalized_at:
+        raise FinanceError("Tax determination is already finalized")
     total_tax = Decimal("0")
     for item in determinations:
         tax = Decimal(str(item["tax_amount"])); total_tax += tax
