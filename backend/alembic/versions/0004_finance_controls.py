@@ -28,25 +28,25 @@ def upgrade():
     op.execute("UPDATE invoices SET status='partially_settled' WHERE status='partially_paid'")
     op.execute("UPDATE invoices SET status='settled' WHERE status='paid'")
     op.execute("UPDATE invoices SET status='cancelled' WHERE status IN ('void','credited')")
-    op.create_check_constraint("ck_invoice_status", "status IN ('draft','pending_approval','approved','issued','posted','partially_settled','settled','cancelled')", "invoices")
+    op.create_check_constraint("ck_invoice_status", "invoices", "status IN ('draft','pending_approval','approved','issued','posted','partially_settled','settled','cancelled')")
 
     op.add_column("tax_determinations", sa.Column("effective_date", sa.Date()))
     op.add_column("tax_determinations", sa.Column("review_status", sa.String(20), nullable=False, server_default="pending"))
     op.add_column("tax_determinations", sa.Column("reviewer", sa.String(200)))
     op.add_column("tax_determinations", sa.Column("evidence_reference", sa.Text()))
-    op.create_check_constraint("ck_tax_determination_review_status", "review_status IN ('pending','reviewed','finalized')", "tax_determinations")
+    op.create_check_constraint("ck_tax_determination_review_status", "tax_determinations", "review_status IN ('pending','reviewed','finalized')")
 
     op.add_column("payments", sa.Column("value_date", sa.Date()))
     op.add_column("payments", sa.Column("external_reference", sa.String(200)))
     op.add_column("payments", sa.Column("source_account_reference", sa.String(200)))
     op.add_column("payments", sa.Column("status", sa.String(20), nullable=False, server_default="received"))
     op.create_unique_constraint("uq_payment_external_reference", "payments", ["external_reference"])
-    op.create_check_constraint("ck_payment_status", "status IN ('received','reconciled','reversed')", "payments")
+    op.create_check_constraint("ck_payment_status", "payments", "status IN ('received','reconciled','reversed')")
     op.execute("UPDATE invoices SET currency=upper(currency)")
     op.execute("UPDATE payments SET currency=upper(currency)")
-    op.create_check_constraint("ck_payment_currency", "currency = upper(currency) AND char_length(currency) = 3", "payments")
-    op.create_check_constraint("ck_invoice_currency", "currency = upper(currency) AND char_length(currency) = 3", "invoices")
-    op.create_check_constraint("ck_invoice_line_total_matches", "round(quantity * unit_price, 4) = line_total", "invoice_lines")
+    op.create_check_constraint("ck_payment_currency", "payments", "currency = upper(currency) AND char_length(currency) = 3")
+    op.create_check_constraint("ck_invoice_currency", "invoices", "currency = upper(currency) AND char_length(currency) = 3")
+    op.create_check_constraint("ck_invoice_line_total_matches", "invoice_lines", "round(quantity * unit_price, 4) = line_total")
 
     op.create_table(
         "invoice_approvals",
@@ -117,6 +117,6 @@ def downgrade():
     op.execute("UPDATE invoices SET status='partially_paid' WHERE status='partially_settled'")
     op.execute("UPDATE invoices SET status='paid' WHERE status='settled'")
     op.execute("UPDATE invoices SET status='void' WHERE status='cancelled'")
-    op.create_check_constraint("ck_invoice_status", "status IN ('draft','issued','partially_paid','paid','void','credited')", "invoices")
+    op.create_check_constraint("ck_invoice_status", "invoices", "status IN ('draft','issued','partially_paid','paid','void','credited')")
     for c in ["created_by_actor", "accounting_date", "posting_date", "settled_date", "posted_at", "approval_state", "tax_finalized_at", "tax_finalized_by"]:
         op.drop_column("invoices", c)
