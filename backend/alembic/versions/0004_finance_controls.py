@@ -18,7 +18,18 @@ def upgrade():
     op.add_column("invoices", sa.Column("tax_finalized_at", sa.DateTime(timezone=True)))
     op.add_column("invoices", sa.Column("tax_finalized_by", sa.String(200)))
     op.execute("UPDATE invoices SET approval_state='legacy' WHERE status IN ('issued','partially_paid','paid','void','credited')")
-    op.drop_constraint("ck_invoice_status", "invoices", type_="check")
+    op.execute("""
+        DO $
+        BEGIN
+            IF EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conname = 'ck_invoice_status'
+                  AND conrelid = 'invoices'::regclass
+            ) THEN
+                ALTER TABLE invoices DROP CONSTRAINT ck_invoice_status;
+            END IF;
+        END $;
+    """)
     op.execute("UPDATE invoices SET status='partially_settled' WHERE status='partially_paid'")
     op.execute("UPDATE invoices SET status='settled' WHERE status='paid'")
     op.execute("UPDATE invoices SET status='cancelled' WHERE status IN ('void','credited')")
