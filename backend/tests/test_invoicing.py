@@ -18,4 +18,4 @@ async def test_maker_checker_and_posting_boundary(db):
     }], organization_id=1)
     await issue_invoice(db, invoice.id, "issuer", organization_id=1)
     await post_invoice(db, invoice.id, "poster", organization_id=1)
-    with pytest.raises(FinanceError): await submit_invoice(db, invoice.id, "maker")
+    with pytest.raises(FinanceError): await submit_invoice(db, invoice.id, "maker", organization_id=1)
