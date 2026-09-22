@@ -65,7 +65,7 @@ async def create_invoice(db: AsyncSession, *, transaction_id: int, actor: str, i
                            quantity=qty, unit_price=price, line_total=total))
     invoice.subtotal_amount = _q(subtotal)
     invoice.total_amount = invoice.subtotal_amount
-    await record_audit(db, actor=actor, action="invoice.created", object_type="invoice",
+    await record_audit(db, organization_id=organization_id, actor=actor, action="invoice.created", object_type="invoice",
                        object_id=invoice.id, new_state=invoice.status, changes={"total": str(invoice.total_amount)},
                        correlation_id=correlation_id)
     return invoice
