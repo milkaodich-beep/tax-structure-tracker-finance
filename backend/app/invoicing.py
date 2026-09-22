@@ -106,8 +106,8 @@ async def finalize_tax(db: AsyncSession, invoice_id: int, actor: str, determinat
     total_tax = Decimal("0")
     for item in determinations:
         tax = Decimal(str(item["tax_amount"])); total_tax += tax
-        db.add(TaxDetermination(invoice_id=invoice.id, **item, tax_amount=tax, review_status="finalized",
-                                reviewer=actor))
+        payload = dict(item); payload["tax_amount"] = tax
+        db.add(TaxDetermination(invoice_id=invoice.id, **payload, review_status="finalized", reviewer=actor))
     invoice.tax_amount = _q(total_tax); invoice.total_amount = _q(invoice.subtotal_amount + invoice.tax_amount)
     invoice.tax_finalized_at = datetime.now(timezone.utc); invoice.tax_finalized_by = actor
     await record_audit(db, actor=actor, action="tax.finalized", object_type="invoice", object_id=invoice.id,
