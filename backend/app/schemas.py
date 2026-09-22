@@ -184,3 +184,15 @@ class PaymentOut(BaseModel):
     method: str | None
     source_account_reference: str | None
     status: str
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=12, max_length=200)
+    organization_id: int
+
+class BootstrapRequest(BaseModel):
+    organization_name: str = Field(min_length=1, max_length=200)
+    admin_email: str = Field(min_length=3, max_length=320)
+    admin_password: str = Field(min_length=16, max_length=200)
+    admin_display_name: str = Field(min_length=1, max_length=200)
+    bootstrap_token: str = Field(min_length=16, max_length=500)

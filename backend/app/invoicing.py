@@ -65,7 +65,7 @@ async def create_invoice(db: AsyncSession, *, transaction_id: int, actor: str, i
                            quantity=qty, unit_price=price, line_total=total))
     invoice.subtotal_amount = _q(subtotal)
     invoice.total_amount = invoice.subtotal_amount
-    await record_audit(db, actor=actor, action="invoice.created", object_type="invoice",
+    await record_audit(db, organization_id=organization_id, actor=actor, action="invoice.created", object_type="invoice",
                        object_id=invoice.id, new_state=invoice.status, changes={"total": str(invoice.total_amount)},
                        correlation_id=correlation_id)
     return invoice
@@ -94,7 +94,7 @@ async def reject_invoice(db: AsyncSession, invoice_id: int, actor: str, comment:
     invoice = await get_invoice(db, invoice_id, lock=True)
     if invoice.status != "pending_approval": raise FinanceError("Invoice is not awaiting approval")
     last = await db.scalar(select(func.max(ApprovalRecord.sequence)).where(ApprovalRecord.invoice_id == invoice.id))
-    db.add(ApprovalRecord(invoice_id=invoice.id, decision="rejected", actor=actor, comment=comment, sequence=(last or 0)+1))
+    db.add(ApprovalRecord(organization_id=organization_id, invoice_id=invoice.id, decision="rejected", actor=actor, comment=comment, sequence=(last or 0)+1))
     invoice.status = "draft"; invoice.approval_state = "rejected"
     await record_audit(db, actor=actor, action="invoice.rejected", object_type="invoice", object_id=invoice.id,
                        previous_state="pending_approval", new_state="draft", changes={"comment": comment}, correlation_id=correlation_id)
@@ -181,7 +181,7 @@ async def reverse_payment(db: AsyncSession, payment_id: int, actor: str, correla
     if payment.status == "reversed": raise FinanceError("Payment already reversed")
     allocations = (await db.scalars(select(PaymentAllocation).where(PaymentAllocation.payment_id==payment.id, PaymentAllocation.status=="active").with_for_update())).all()
     for allocation in allocations:
-        invoice = await get_invoice(db, allocation.invoice_id, lock=True)
+        invoice = await get_invoice(db, allocation.invoice_id, organization_id=organization_id, lock=True)
         allocation.status = "reversed"
         paid = await db.scalar(select(func.coalesce(func.sum(PaymentAllocation.allocated_amount),0)).where(PaymentAllocation.invoice_id==invoice.id, PaymentAllocation.status=="active"))
         invoice.status = "posted" if (paid or Decimal("0")) == 0 else "partially_settled"
